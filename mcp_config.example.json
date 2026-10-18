@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "atlaspay-reasoning": {
+      "command": "<ABS_REPO_PATH>/.venv/bin/python",
+      "args": ["-m", "graph_intelligence.reasoning.mcp_server"]
+    },
+    "atlaspay-memory": {
+      "command": "<ABS_REPO_PATH>/.venv/bin/python",
+      "args": ["-m", "graph_intelligence.memory.mcp_server"],
+      "env": {
+        "DEMO_USER_ID": "demo-user-herbert"
+      }
+    },
+    "atlaspay-brain": {
+      "command": "<ABS_REPO_PATH>/.venv/bin/python",
+      "args": ["-m", "graph_intelligence.company_brain.mcp_server"]
+    }
+  }
+}

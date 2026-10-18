@@ -1,0 +1,379 @@
+{
+  "company_nodes": [
+    {
+      "label": "Company",
+      "id": "co-atlaspay",
+      "name": "AtlasPay",
+      "properties": {
+        "description": "Synthetic fintech payment infrastructure platform"
+      }
+    },
+    {
+      "label": "Team",
+      "id": "team-payments",
+      "name": "Payments",
+      "properties": {
+        "description": "Responsible for payment intake, processing, and transaction lifecycle"
+      }
+    },
+    {
+      "label": "Team",
+      "id": "team-platform",
+      "name": "Platform",
+      "properties": {
+        "description": "Responsible for API Gateway, developer tooling, and core ledger storage"
+      }
+    },
+    {
+      "label": "Team",
+      "id": "team-risk",
+      "name": "Risk",
+      "properties": {
+        "description": "Responsible for fraud detection and risk scoring models"
+      }
+    },
+    {
+      "label": "Person",
+      "id": "per-maya-chen",
+      "name": "Maya Chen",
+      "properties": {
+        "role": "Staff Engineer, Tech Lead",
+        "email": "maya.chen@atlaspay.synthetic"
+      }
+    },
+    {
+      "label": "Person",
+      "id": "per-arjun-rao",
+      "name": "Arjun Rao",
+      "properties": {
+        "role": "Senior Staff Engineer",
+        "email": "arjun.rao@atlaspay.synthetic"
+      }
+    },
+    {
+      "label": "Person",
+      "id": "per-elena-park",
+      "name": "Elena Park",
+      "properties": {
+        "role": "Staff Infrastructure Engineer",
+        "email": "elena.park@atlaspay.synthetic"
+      }
+    },
+    {
+      "label": "Person",
+      "id": "per-noah-williams",
+      "name": "Noah Williams",
+      "properties": {
+        "role": "Principal ML/Risk Engineer",
+        "email": "noah.williams@atlaspay.synthetic"
+      }
+    },
+    {
+      "label": "Person",
+      "id": "per-priya-shah",
+      "name": "Priya Shah",
+      "properties": {
+        "role": "Senior Software Engineer",
+        "email": "priya.shah@atlaspay.synthetic"
+      }
+    },
+    {
+      "label": "Project",
+      "id": "proj-payment-reliability",
+      "name": "Payment Reliability",
+      "properties": {
+        "description": "High-availability, idempotent payment execution and timeout resilience"
+      }
+    },
+    {
+      "label": "Project",
+      "id": "proj-risk-signals",
+      "name": "Risk Signals",
+      "properties": {
+        "description": "Real-time transaction fraud scoring and decision pipeline"
+      }
+    },
+    {
+      "label": "Project",
+      "id": "proj-developer-platform",
+      "name": "Developer Platform",
+      "properties": {
+        "description": "API Gateway, developer portal, and external notification delivery"
+      }
+    },
+    {
+      "label": "Service",
+      "id": "svc-api-gateway",
+      "name": "API Gateway",
+      "aliases": ["gateway"],
+      "properties": {
+        "tier": "tier-1",
+        "protocol": "HTTP/REST"
+      }
+    },
+    {
+      "label": "Service",
+      "id": "svc-payment",
+      "name": "PaymentService",
+      "aliases": ["payment service", "payments service", "payments"],
+      "properties": {
+        "tier": "tier-1",
+        "protocol": "gRPC"
+      }
+    },
+    {
+      "label": "Service",
+      "id": "svc-ledger",
+      "name": "LedgerService",
+      "aliases": ["ledger"],
+      "properties": {
+        "tier": "tier-1",
+        "protocol": "gRPC"
+      }
+    },
+    {
+      "label": "Service",
+      "id": "svc-risk-engine",
+      "name": "RiskEngine",
+      "aliases": ["risk engine"],
+      "properties": {
+        "tier": "tier-2",
+        "protocol": "gRPC"
+      }
+    },
+    {
+      "label": "Service",
+      "id": "svc-notification",
+      "name": "NotificationService",
+      "aliases": ["notifications"],
+      "properties": {
+        "tier": "tier-2",
+        "protocol": "async-events"
+      }
+    },
+    {
+      "label": "Feature",
+      "id": "feat-idempotent-payments",
+      "name": "Idempotent Payment Processing",
+      "aliases": ["idempotency"],
+      "properties": {
+        "description": "Ensures payment charges with matching idempotency keys are executed exactly once"
+      }
+    },
+    {
+      "label": "Feature",
+      "id": "feat-bounded-retry",
+      "name": "Bounded Retry Policy",
+      "aliases": ["retry behavior", "retry policy", "retries"],
+      "properties": {
+        "description": "Exponential backoff with jitter and a maximum of 5 attempts"
+      }
+    },
+    {
+      "label": "Feature",
+      "id": "feat-risk-scoring",
+      "name": "Risk Scoring",
+      "aliases": [],
+      "properties": {
+        "description": "Evaluates incoming transactions for fraudulent indicators"
+      }
+    },
+    {
+      "label": "Feature",
+      "id": "feat-webhook-delivery",
+      "name": "Webhook Delivery",
+      "aliases": ["webhooks"],
+      "properties": {
+        "description": "Dispatches external webhook events upon payment lifecycle state transitions"
+      }
+    },
+    {
+      "label": "Incident",
+      "id": "inc-pay-042",
+      "name": "Payment Timeout Incident",
+      "code": "INC-PAY-042",
+      "aliases": ["INC-PAY-042"],
+      "properties": {
+        "severity": "SEV-1",
+        "occurred_at": "2026-03-01T14:22:00Z"
+      }
+    },
+    {
+      "label": "Incident",
+      "id": "inc-pay-019",
+      "name": "Duplicate Charge Incident",
+      "code": "INC-PAY-019",
+      "aliases": ["INC-PAY-019"],
+      "properties": {
+        "severity": "SEV-2",
+        "occurred_at": "2026-01-20T09:15:00Z"
+      }
+    },
+    {
+      "label": "Decision",
+      "id": "adr-014",
+      "name": "ADR-014: Use idempotency keys",
+      "aliases": ["ADR-014", "idempotency keys", "idempotency key"],
+      "properties": {
+        "status": "accepted",
+        "decided_on": "2026-02-10",
+        "rationale": "Clients retried create-payment calls after timeouts, causing duplicate charges (INC-PAY-019). Idempotency keys let PaymentService deduplicate repeated requests within a 24h window."
+      }
+    },
+    {
+      "label": "Decision",
+      "id": "adr-021",
+      "name": "ADR-021: Bounded exponential backoff",
+      "aliases": ["ADR-021", "exponential backoff"],
+      "properties": {
+        "status": "accepted",
+        "decided_on": "2026-03-05",
+        "rationale": "Unbounded immediate retries amplified load during INC-PAY-042. Retries use exponential backoff with jitter and a hard cap of 5 attempts."
+      }
+    },
+    {
+      "label": "Decision",
+      "id": "adr-027",
+      "name": "ADR-027: Standardize connection-pool limits",
+      "aliases": ["ADR-027", "connection pool"],
+      "properties": {
+        "status": "accepted",
+        "decided_on": "2026-03-20",
+        "rationale": "Pool exhaustion contributed to timeouts; standard limits and monitoring added."
+      }
+    },
+    {
+      "label": "Document",
+      "id": "doc-adr-014",
+      "name": "ADR-014 Idempotency Keys",
+      "properties": {
+        "uri": "atlaspay://docs/adr-014",
+        "doc_type": "adr",
+        "excerpt": "Architecture Decision Record detailing idempotency key design for PaymentService to deduplicate retried API calls and eliminate duplicate charges."
+      }
+    },
+    {
+      "label": "Document",
+      "id": "doc-adr-021",
+      "name": "ADR-021 Retry Policy",
+      "properties": {
+        "uri": "atlaspay://docs/adr-021",
+        "doc_type": "adr",
+        "excerpt": "Standard retry policy specification establishing exponential backoff with jitter and 5-attempt limit across all payment integration clients."
+      }
+    },
+    {
+      "label": "Document",
+      "id": "doc-ir-2026-041",
+      "name": "Incident Review IR-2026-041",
+      "properties": {
+        "uri": "atlaspay://docs/ir-2026-041",
+        "doc_type": "incident_review",
+        "excerpt": "Post-incident analysis for INC-PAY-042 payment timeouts caused by downstream connection pool starvation and unbounded retry cascades."
+      }
+    },
+    {
+      "label": "Document",
+      "id": "doc-runbook-payment-reliability",
+      "name": "Payment Reliability Runbook",
+      "properties": {
+        "uri": "atlaspay://docs/runbook-payment-reliability",
+        "doc_type": "runbook",
+        "excerpt": "Operational runbook for diagnosing payment processing degradation, timeout spikes, and connection pool exhaustion."
+      }
+    },
+    {
+      "label": "Document",
+      "id": "doc-service-ownership-catalog",
+      "name": "Service Ownership Catalog",
+      "properties": {
+        "uri": "atlaspay://docs/service-ownership-catalog",
+        "doc_type": "catalog",
+        "excerpt": "Authoritative directory mapping core microservices (Payment, Ledger, Gateway, Risk, Notification) to responsible engineering teams and tech leads."
+      }
+    }
+  ],
+  "user_nodes": [
+    {
+      "label": "User",
+      "id": "demo-user-herbert",
+      "name": "Herbert",
+      "properties": {
+        "description": "Primary demo user identity"
+      }
+    },
+    {
+      "label": "User",
+      "id": "demo-user-other",
+      "name": "Other User",
+      "properties": {
+        "description": "Secondary demo user identity for tenant isolation testing"
+      }
+    }
+  ],
+  "relationships": [
+    {"type": "BELONGS_TO", "from_id": "team-payments", "to_id": "co-atlaspay"},
+    {"type": "BELONGS_TO", "from_id": "team-platform", "to_id": "co-atlaspay"},
+    {"type": "BELONGS_TO", "from_id": "team-risk", "to_id": "co-atlaspay"},
+
+    {"type": "MEMBER_OF", "from_id": "per-maya-chen", "to_id": "team-payments"},
+    {"type": "MEMBER_OF", "from_id": "per-priya-shah", "to_id": "team-payments"},
+    {"type": "MEMBER_OF", "from_id": "per-arjun-rao", "to_id": "team-platform"},
+    {"type": "MEMBER_OF", "from_id": "per-elena-park", "to_id": "team-platform"},
+    {"type": "MEMBER_OF", "from_id": "per-noah-williams", "to_id": "team-risk"},
+
+    {"type": "OWNS", "from_id": "per-maya-chen", "to_id": "svc-payment"},
+    {"type": "OWNS", "from_id": "per-arjun-rao", "to_id": "svc-api-gateway"},
+    {"type": "OWNS", "from_id": "per-elena-park", "to_id": "svc-ledger"},
+    {"type": "OWNS", "from_id": "per-noah-williams", "to_id": "svc-risk-engine"},
+    {"type": "OWNS", "from_id": "per-priya-shah", "to_id": "svc-notification"},
+
+    {"type": "PART_OF", "from_id": "svc-payment", "to_id": "proj-payment-reliability"},
+    {"type": "PART_OF", "from_id": "svc-ledger", "to_id": "proj-payment-reliability"},
+    {"type": "PART_OF", "from_id": "svc-risk-engine", "to_id": "proj-risk-signals"},
+    {"type": "PART_OF", "from_id": "svc-api-gateway", "to_id": "proj-developer-platform"},
+    {"type": "PART_OF", "from_id": "svc-notification", "to_id": "proj-developer-platform"},
+
+    {"type": "DEPENDS_ON", "from_id": "svc-api-gateway", "to_id": "svc-payment"},
+    {"type": "DEPENDS_ON", "from_id": "svc-payment", "to_id": "svc-ledger"},
+    {"type": "DEPENDS_ON", "from_id": "svc-payment", "to_id": "svc-risk-engine"},
+    {"type": "DEPENDS_ON", "from_id": "svc-payment", "to_id": "svc-notification"},
+
+    {"type": "IMPLEMENTS", "from_id": "svc-payment", "to_id": "feat-idempotent-payments"},
+    {"type": "IMPLEMENTS", "from_id": "svc-payment", "to_id": "feat-bounded-retry"},
+    {"type": "IMPLEMENTS", "from_id": "svc-risk-engine", "to_id": "feat-risk-scoring"},
+    {"type": "IMPLEMENTS", "from_id": "svc-notification", "to_id": "feat-webhook-delivery"},
+
+    {"type": "AFFECTS", "from_id": "inc-pay-042", "to_id": "svc-payment"},
+    {"type": "AFFECTS", "from_id": "inc-pay-042", "to_id": "svc-ledger"},
+    {"type": "AFFECTS", "from_id": "inc-pay-019", "to_id": "svc-payment"},
+    {"type": "AFFECTS", "from_id": "adr-014", "to_id": "svc-payment"},
+    {"type": "AFFECTS", "from_id": "adr-021", "to_id": "svc-payment"},
+    {"type": "AFFECTS", "from_id": "adr-027", "to_id": "svc-ledger"},
+    {"type": "AFFECTS", "from_id": "adr-027", "to_id": "svc-payment"},
+
+    {"type": "MADE_FOR", "from_id": "adr-014", "to_id": "proj-payment-reliability"},
+    {"type": "MADE_FOR", "from_id": "adr-021", "to_id": "proj-payment-reliability"},
+    {"type": "MADE_FOR", "from_id": "adr-027", "to_id": "proj-payment-reliability"},
+
+    {"type": "SUPPORTED_BY", "from_id": "adr-014", "to_id": "doc-adr-014"},
+    {"type": "SUPPORTED_BY", "from_id": "adr-021", "to_id": "doc-adr-021"},
+    {"type": "SUPPORTED_BY", "from_id": "adr-027", "to_id": "doc-runbook-payment-reliability"},
+
+    {"type": "RESPONDS_TO", "from_id": "adr-014", "to_id": "inc-pay-019"},
+    {"type": "RESPONDS_TO", "from_id": "adr-021", "to_id": "inc-pay-042"},
+    {"type": "RESPONDS_TO", "from_id": "adr-027", "to_id": "inc-pay-042"},
+
+    {"type": "DESCRIBES", "from_id": "doc-adr-014", "to_id": "adr-014"},
+    {"type": "DESCRIBES", "from_id": "doc-adr-014", "to_id": "feat-idempotent-payments"},
+    {"type": "DESCRIBES", "from_id": "doc-adr-021", "to_id": "adr-021"},
+    {"type": "DESCRIBES", "from_id": "doc-adr-021", "to_id": "feat-bounded-retry"},
+    {"type": "DESCRIBES", "from_id": "doc-ir-2026-041", "to_id": "inc-pay-042"},
+    {"type": "DESCRIBES", "from_id": "doc-runbook-payment-reliability", "to_id": "svc-payment"},
+    {"type": "DESCRIBES", "from_id": "doc-service-ownership-catalog", "to_id": "svc-api-gateway"},
+    {"type": "DESCRIBES", "from_id": "doc-service-ownership-catalog", "to_id": "svc-payment"},
+    {"type": "DESCRIBES", "from_id": "doc-service-ownership-catalog", "to_id": "svc-ledger"},
+    {"type": "DESCRIBES", "from_id": "doc-service-ownership-catalog", "to_id": "svc-risk-engine"},
+    {"type": "DESCRIBES", "from_id": "doc-service-ownership-catalog", "to_id": "svc-notification"}
+  ]
+}
