@@ -17,6 +17,11 @@ Built specifically for advanced agentic AI environments (such as **Google Antigr
 1. [Executive Summary & Problem Statement](#1-executive-summary--problem-statement)
 2. [System Architecture](#2-system-architecture)
 3. [Graph Data Model & Schema](#3-graph-data-model--schema)
+   - [Dual-Domain Architecture](#dual-domain-architecture)
+   - [Entity-Relationship Diagram](#entity-relationship-diagram)
+   - [Node Labels & Property Specifications](#node-labels--property-specifications)
+   - [Relationship Taxonomy & Semantics](#relationship-taxonomy--semantics)
+   - [Indexing & Schema Integrity in FalkorDB](#indexing--schema-integrity-in-falkordb)
 4. [Deep Dive: The Three MCP Servers](#4-deep-dive-the-three-mcp-servers)
    - [Track 1: atlaspay-reasoning](#track-1-atlaspay-reasoning)
    - [Track 2: atlaspay-memory (The Critical Track)](#track-2-atlaspay-memory-the-critical-track)
@@ -25,7 +30,12 @@ Built specifically for advanced agentic AI environments (such as **Google Antigr
 6. [FalkorDB Field Learnings & Opportunities for Improvement](#6-falkordb-field-learnings--opportunities-for-improvement)
 7. [Verification & Test Suite (33/33 Passing)](#7-verification--test-suite-3333-passing)
 8. [Live Demo Runbook & Prompt Storyboard](#8-live-demo-runbook--prompt-storyboard)
-9. [Deployment & Quickstart](#9-deployment--quickstart)
+9. [Setup Instructions & Deployment Guide](#9-setup-instructions--deployment-guide)
+   - [Option A: 100% Local Setup (Docker + Local FalkorDB)](#option-a-100-local-setup-docker--local-falkordb)
+   - [Option B: Cloud Setup (FalkorDB Cloud)](#option-b-cloud-setup-falkordb-cloud)
+   - [Option C: Fully Containerized App](#option-c-fully-containerized-app)
+   - [Configuring MCP Clients (Antigravity, Claude Desktop, Cursor)](#configuring-mcp-clients)
+   - [Local Troubleshooting & Diagnostic Guide](#local-troubleshooting--diagnostic-guide)
 
 ---
 
@@ -85,7 +95,15 @@ flowchart TD
 
 ## 3. Graph Data Model & Schema
 
-The graph maintains strict separation between **Company Knowledge Nodes** (seeded/ingested once, readable by all) and **Private User Memory Nodes** (scoped by `user_id`, readable and writable only by the owning identity).
+The platform implements a unified property graph in FalkorDB with strict domain boundaries and schema validation.
+
+### Dual-Domain Architecture
+
+The graph cleanly segregates data into two isolated logical domains:
+1. **Company Knowledge Domain (Global & Read-Only)**: Authoritative organizational architecture, service topology, ADRs, incidents, features, teams, and documents. Seeded during onboarding or structured ingestion; immutable during standard chat operations.
+2. **User Memory Domain (Tenant-Isolated & Versioned)**: User-specific sessions, summaries, and tasks. Strictly scoped by `user_id` enforced server-side. Implements append-only versioning via `[:SUPERSEDES]` relationships.
+
+### Entity-Relationship Diagram
 
 ```mermaid
 erDiagram
@@ -109,18 +127,87 @@ erDiagram
   SessionSummary ||--o{ Session : "FROM_SESSION"
   SessionSummary ||--o{ Project : "ABOUT_PROJECT"
   SessionSummary ||--o{ Service : "MENTIONS_ENTITY"
+  SessionSummary ||--o{ Incident : "MENTIONS_ENTITY"
   SessionSummary ||--o{ Decision : "MENTIONS_ENTITY"
+  SessionSummary ||--o{ Feature : "MENTIONS_ENTITY"
+  SessionSummary ||--o{ Document : "MENTIONS_ENTITY"
+  SessionSummary ||--o{ Person : "MENTIONS_ENTITY"
+  SessionSummary ||--o{ Team : "MENTIONS_ENTITY"
   SessionSummary ||--o{ SessionSummary : "SUPERSEDES"
   SessionSummary ||--o{ Task : "HAS_TASK"
 ```
 
-### Allowlisted Labels & Relationships
-| Label Category | Labels |
-|---|---|
-| **Company Knowledge** | `Company`, `Team`, `Person`, `Project`, `Service`, `Feature`, `Incident`, `Decision`, `Document` |
-| **User Memory** | `User`, `Session`, `SessionSummary`, `Task` |
+### Node Labels & Property Specifications
 
-Every node carries: `id`, `name`/`title`, `created_at`, `updated_at`, `source` (`seed` | `structured_ingestion` | `llm_mcp_write`), and optional `source_ref`.
+All nodes in the graph share baseline metadata properties:
+- `id` (String, Indexed): Unique identifier (e.g., `svc-payment`, `dec-adr-014`, `sum_295209b8f3c8`).
+- `name` / `title` (String): Human-readable name or summary title.
+- `created_at` (ISO 8601 String): Timestamp of initial creation.
+- `updated_at` (ISO 8601 String): Timestamp of last modification.
+- `source` (String): Origin provenance (`"seed"`, `"structured_ingestion"`, or `"llm_mcp_write"`).
+- `source_ref` (Optional String): External reference link or document pointer.
+
+#### 1. Company Knowledge Nodes
+| Label | Key Properties | Description & Example |
+|---|---|---|
+| `Company` | `name`, `domain`, `founded` | Top-level enterprise root (e.g., *AtlasPay*). |
+| `Team` | `name`, `mission`, `slack_channel` | Engineering or product teams (e.g., *Payments*, *Core Banking*). |
+| `Person` | `name`, `role`, `email`, `timezone` | Engineers, architects, and owners (e.g., *Maya Chen, Staff Engineer*). |
+| `Project` | `name`, `status`, `priority`, `description` | High-level initiatives (e.g., *Payment Reliability*, *status="in_progress"*). |
+| `Service` | `name`, `tier`, `language`, `repo`, `description` | Microservices (e.g., *PaymentService, tier=1, language="Go"*). |
+| `Feature` | `name`, `status`, `description` | System capabilities (e.g., *Idempotent Payment Processing*, *Bounded Retry Policy*). |
+| `Incident` | `name`, `severity`, `status`, `postmortem_url` | Postmortems & outages (e.g., *INC-PAY-019, severity="sev1"*). |
+| `Decision` | `name`, `status`, `rationale`, `accepted_date` | Architecture Decision Records (e.g., *ADR-014 Idempotency Keys*). |
+| `Document` | `name`, `doc_type`, `uri`, `excerpt`, `content` | Documentation and runbooks (e.g., *doc-adr-014, type="adr"*). |
+
+#### 2. User Memory Nodes
+| Label | Key Properties | Description & Isolation Rule |
+|---|---|---|
+| `User` | `id`, `name`, `email`, `role` | Identity node anchoring private memory. |
+| `Session` | `id`, `user_id`, `started_at`, `client` | Represents an interactive developer conversation turn. |
+| `SessionSummary` | `id`, `user_id`, `session_id`, `title`, `summary`, `keywords`, `entity_keys`, `decisions`, `open_tasks_text`, `project_id`, `status`, `summary_version`, `content_hash` | Core memory record. `status` is `'active'`, `'superseded'`, or `'archived'`. Scoped strictly to `user_id`. |
+| `Task` | `id`, `user_id`, `text`, `status`, `created_at` | Trackable action items extracted from session decisions (`'open'`, `'done'`). |
+
+### Relationship Taxonomy & Semantics
+
+| Edge Type | Source Label | Target Label | Semantic Meaning & Traversal Pattern |
+|---|---|---|---|
+| `BELONGS_TO` | `Team` | `Company` | Organizational hierarchy. |
+| `MEMBER_OF` | `Person` | `Team` | Team staffing and escalation paths. |
+| `OWNS` | `Person` | `Service` | Service ownership and code review routing. |
+| `PART_OF` | `Service` | `Project` | Project service portfolio mapping. |
+| `DEPENDS_ON` | `Service` | `Service` | Direct directional service call/RPC dependency (`A -> B`). Multi-hop traversals trace upstream load and downstream blast radius. |
+| `IMPLEMENTS` | `Service` | `Feature` | Feature implementation mapping. |
+| `AFFECTS` | `Incident` | `Service` | Historical incident attribution for reliability analysis. |
+| `AFFECTS` | `Decision` | `Service` | Service architectural constraint tracking. |
+| `MADE_FOR` | `Decision` | `Project` | Project-level architecture alignment. |
+| `SUPPORTED_BY` | `Decision` | `Document` | Citation link connecting ADR to its canonical documentation. |
+| `RESPONDS_TO` | `Decision` | `Incident` | Root-cause remediation tracking (ADRs triggered by postmortems). |
+| `DESCRIBES` | `Document` | `Service`/`Feature`/`Incident`/`Decision` | Documentation linkage for source citations. |
+| `OWNS_MEMORY` | `User` | `SessionSummary` | Security boundary mapping a user to their private memory nodes. |
+| `FROM_SESSION` | `SessionSummary` | `Session` | Provenance link back to the originating chat session. |
+| `ABOUT_PROJECT` | `SessionSummary` | `Project` | Project-scoped memory filtering. |
+| `MENTIONS_ENTITY`| `SessionSummary` | `Service`/`Incident`/`Decision`/`Feature`/`Person`/`Team` | Entity linkage enabling graph-adjacency memory scoring (+2.0 per hop). |
+| `SUPERSEDES` | `SessionSummary` | `SessionSummary` | Version lineage DAG (`v(n) -> v(n-1)`) for rollback and timeline history. |
+| `HAS_TASK` | `SessionSummary` | `Task` | Action item ownership and carryover tracking across updates. |
+
+### Indexing & Schema Integrity in FalkorDB
+
+To achieve sub-millisecond query latency across thousands of nodes and traversals, `GraphStore.ensure_indexes()` guarantees the following indexes on FalkorDB:
+- `CREATE INDEX FOR (n:Company) ON (n.id)`
+- `CREATE INDEX FOR (n:Team) ON (n.id)`
+- `CREATE INDEX FOR (n:Person) ON (n.id)`
+- `CREATE INDEX FOR (n:Project) ON (n.id)`
+- `CREATE INDEX FOR (n:Service) ON (n.id)`
+- `CREATE INDEX FOR (n:Feature) ON (n.id)`
+- `CREATE INDEX FOR (n:Incident) ON (n.id)`
+- `CREATE INDEX FOR (n:Decision) ON (n.id)`
+- `CREATE INDEX FOR (n:Document) ON (n.id)`
+- `CREATE INDEX FOR (n:User) ON (n.id)`
+- `CREATE INDEX FOR (n:Session) ON (n.id)`
+- `CREATE INDEX FOR (n:SessionSummary) ON (n.id)`
+- `CREATE INDEX FOR (n:SessionSummary) ON (n.user_id)`
+- `CREATE INDEX FOR (n:Task) ON (n.id)`
 
 ---
 
@@ -383,46 +470,247 @@ Update that memory: the shared core is implemented, and the next task is to test
 
 ---
 
-## 9. Deployment & Quickstart
+## 9. Setup Instructions & Deployment Guide
 
-### 1. Installation
+This platform supports two primary deployment modes:
+- **Option A: 100% Local Setup**: Run FalkorDB locally in Docker with zero cloud dependencies or external credentials required. Perfect for development, evaluation, and offline test verification.
+- **Option B: Cloud Deployment**: Connect to a managed FalkorDB Cloud cluster for shared production deployments.
+
+---
+
+### Option A: 100% Local Setup (Docker + Local FalkorDB)
+
+If you do not have a FalkorDB Cloud account or want to run everything locally without external infrastructure, follow these complete step-by-step instructions.
+
+#### Prerequisites
+- **Python 3.10+** (tested up to Python 3.14)
+- **Docker & Docker Compose** (or Docker Desktop on Windows/macOS)
+- **Git**
+
+#### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/herbert-bevan/falkordb-graph-intelligence.git
 cd falkordb-graph-intelligence
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
-### 2. Environment Configuration
-Create `.env` in the repository root:
+#### Step 2: Start Local FalkorDB via Docker
+Run the official FalkorDB Docker container using the included `docker-compose.yml`:
+```bash
+docker compose up -d
+```
+
+*(Alternatively, run standalone without compose:)*
+```bash
+docker run -d --name atlaspay-falkordb -p 6379:6379 -v falkordb-data:/var/lib/falkordb/data falkordb/falkordb:latest
+```
+
+Verify that the container is healthy and listening on port `6379`:
+```bash
+docker ps --filter "name=atlaspay-falkordb"
+```
+
+#### Step 3: Set Up Python Virtual Environment & Dependencies
+
+##### On Windows (PowerShell):
+```powershell
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+.\.venv\Scripts\Activate.ps1
+
+# Upgrade pip and install package with development/test dependencies
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+##### On Linux / macOS (Bash / Zsh):
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Upgrade pip and install package with development/test dependencies
+pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+#### Step 4: Configure Local `.env` File
+Create a `.env` file in the repository root configured for your local Docker FalkorDB instance:
+
 ```dotenv
-FALKORDB_HOST=your-instance.cloud.falkordb.com
+# Local FalkorDB Connection Settings (Docker)
+FALKORDB_HOST=localhost
 FALKORDB_PORT=6379
-FALKORDB_USERNAME=falkordb
-FALKORDB_PASSWORD=your-password
+FALKORDB_USERNAME=
+FALKORDB_PASSWORD=
 FALKORDB_SSL=false
+
+# Graph Names
 FALKORDB_GRAPH=atlaspay_demo
 FALKORDB_GRAPH_TEST=atlaspay_test
+
+# Agent & Demo Context
 DEMO_USER_ID=demo-user-herbert
 DEFAULT_PROJECT_ID=proj-payment-reliability
 LOG_LEVEL=INFO
 ```
 
-### 3. Database Initialization & Verification
-```powershell
-# Check cloud connection
+> **Note**: Local Docker FalkorDB requires no authentication by default. Leaving `FALKORDB_USERNAME` and `FALKORDB_PASSWORD` blank connects directly without credentials.
+
+#### Step 5: Verify Connection to Local FalkorDB
+```bash
+# Windows
 .\.venv\Scripts\python.exe scripts/check_connection.py
 
-# Seed the 31 company nodes & 53 relationships
+# Linux/macOS
+python scripts/check_connection.py
+```
+**Expected Output:**
+```text
+Connecting to FalkorDB on localhost:6379...
+[OK] Connected successfully to FalkorDB!
+Graph 'atlaspay_demo' is ready.
+```
+
+#### Step 6: Seed Knowledge Graph & Schema
+Populate the database with the synthetic enterprise graph (31 nodes, 53 relationships, and auto-generated indexes):
+```bash
+# Windows
 .\.venv\Scripts\python.exe scripts/seed_demo.py
 
-# Verify counts & integrity
-.\.venv\Scripts\python.exe scripts/verify_seed.py
+# Linux/macOS
+python scripts/seed_demo.py
 ```
 
-### 4. Docker / VPS Deployment
-For production or self-hosted deployment:
+#### Step 7: Verify Database Seed State
 ```bash
-docker compose up -d
-docker build -t falkordb-graph-intelligence .
+# Windows
+.\.venv\Scripts\python.exe scripts/verify_seed.py
+
+# Linux/macOS
+python scripts/verify_seed.py
 ```
+**Expected Output:**
+```text
+Database contains 31 company nodes, 53 relationships, 2 user identity nodes, 0 initial summaries.
+Schema indexes verified: 14 indexes active.
+```
+
+#### Step 8: Run Full Automated Test Suite
+Execute all 33 unit tests, integration tests, and live MCP stdio subprocess tests against your local FalkorDB instance:
+```bash
+# Windows
+.\.venv\Scripts\pytest.exe tests -v
+
+# Linux/macOS
+pytest tests -v
+```
+All 33 tests will pass with `[100%]` green status in under 60 seconds.
+
+---
+
+### Option B: Cloud Setup (FalkorDB Cloud)
+
+To connect to a managed FalkorDB Cloud database:
+
+1. Create a database instance on [FalkorDB Cloud](https://app.falkordb.com/).
+2. Obtain your instance host, port, and password from the FalkorDB dashboard.
+3. Update your `.env` file:
+   ```dotenv
+   FALKORDB_HOST=your-instance.cloud.falkordb.com
+   FALKORDB_PORT=6379
+   FALKORDB_USERNAME=falkordb
+   FALKORDB_PASSWORD=your-cloud-password
+   FALKORDB_SSL=false
+   FALKORDB_GRAPH=atlaspay_demo
+   FALKORDB_GRAPH_TEST=atlaspay_test
+   DEMO_USER_ID=demo-user-herbert
+   DEFAULT_PROJECT_ID=proj-payment-reliability
+   LOG_LEVEL=INFO
+   ```
+4. Run `python scripts/check_connection.py` followed by `python scripts/seed_demo.py`.
+
+---
+
+### Option C: Fully Containerized App
+
+You can also run both FalkorDB and the Python MCP services together using Docker:
+
+```bash
+# Build the application image
+docker build -t falkordb-graph-intelligence .
+
+# Start containers
+docker compose up -d
+```
+
+---
+
+### Configuring MCP Clients
+
+The three MCP servers communicate using the JSON-RPC stdio protocol. Configure your preferred AI client:
+
+#### 1. Google Antigravity
+Add the following to your Antigravity MCP configuration (`MCP Servers -> Manage MCP Servers -> View raw config`):
+
+```json
+{
+  "mcpServers": {
+    "atlaspay-reasoning": {
+      "command": "/absolute/path/to/falkordb-graph-intelligence/.venv/Scripts/python.exe",
+      "args": ["-m", "graph_intelligence.reasoning.mcp_server"]
+    },
+    "atlaspay-memory": {
+      "command": "/absolute/path/to/falkordb-graph-intelligence/.venv/Scripts/python.exe",
+      "args": ["-m", "graph_intelligence.memory.mcp_server"],
+      "env": {
+        "DEMO_USER_ID": "demo-user-herbert"
+      }
+    },
+    "atlaspay-brain": {
+      "command": "/absolute/path/to/falkordb-graph-intelligence/.venv/Scripts/python.exe",
+      "args": ["-m", "graph_intelligence.company_brain.mcp_server"]
+    }
+  }
+}
+```
+*(On Linux/macOS, replace `.venv/Scripts/python.exe` with `.venv/bin/python`)*
+
+#### 2. Claude Desktop (`claude_desktop_config.json`)
+```json
+{
+  "mcpServers": {
+    "atlaspay-reasoning": {
+      "command": "python",
+      "args": ["-m", "graph_intelligence.reasoning.mcp_server"],
+      "cwd": "/path/to/falkordb-graph-intelligence"
+    },
+    "atlaspay-memory": {
+      "command": "python",
+      "args": ["-m", "graph_intelligence.memory.mcp_server"],
+      "cwd": "/path/to/falkordb-graph-intelligence",
+      "env": { "DEMO_USER_ID": "demo-user-herbert" }
+    },
+    "atlaspay-brain": {
+      "command": "python",
+      "args": ["-m", "graph_intelligence.company_brain.mcp_server"],
+      "cwd": "/path/to/falkordb-graph-intelligence"
+    }
+  }
+}
+```
+
+---
+
+### Local Troubleshooting & Diagnostic Guide
+
+| Issue | Cause | Fix |
+|---|---|---|
+| `redis.exceptions.ConnectionError: Error 10061 connecting to localhost:6379` | Local FalkorDB container is not running. | Run `docker compose up -d` or `docker start atlaspay-falkordb`. Verify with `docker ps`. |
+| `Address already in use: 6379` | Existing local Redis or FalkorDB process occupies port 6379. | Stop the existing service (`sudo systemctl stop redis` on Linux or stop via Windows Services / Docker), or map to a different host port in `docker-compose.yml` (e.g. `"6380:6379"` and set `FALKORDB_PORT=6380` in `.env`). |
+| `PSSecurityException: File ... Activate.ps1 cannot be loaded` | Windows PowerShell execution policy blocks scripts. | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in your PowerShell terminal before running `.\.venv\Scripts\Activate.ps1`. |
+| `JSONRPCError / Protocol Desynchronization` | Server wrote stdout text instead of clean JSON-RPC messages. | Ensure no `print()` statements are added to MCP code. All logging in this repository strictly outputs JSON to `stderr`. |
+| `Attribute 'id' is already indexed` | Non-idempotent index creation. | Handled automatically by `GraphStore.ensure_indexes()`. If manually modifying schema, inspect with `CALL db.indexes()` first. |
