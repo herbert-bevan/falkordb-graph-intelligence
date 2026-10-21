@@ -34,8 +34,10 @@ Built specifically for advanced agentic AI environments (such as **Google Antigr
    - [Option A: 100% Local Setup (Docker + Local FalkorDB)](#option-a-100-local-setup-docker--local-falkordb)
    - [Option B: Cloud Setup (FalkorDB Cloud)](#option-b-cloud-setup-falkordb-cloud)
    - [Option C: Fully Containerized App](#option-c-fully-containerized-app)
+   - [Testing Locally with MCP Inspector (`@modelcontextprotocol/inspector`)](#testing-locally-with-mcp-inspector-modelcontextprotocolinspector)
    - [Configuring MCP Clients (Antigravity, Claude Desktop, Cursor)](#configuring-mcp-clients)
    - [Local Troubleshooting & Diagnostic Guide](#local-troubleshooting--diagnostic-guide)
+10. [Deep Architecture & File-by-File Code Flow](#10-deep-architecture--file-by-file-code-flow)
 
 ---
 
@@ -90,6 +92,9 @@ flowchart TD
 1. **stdio Transport Layer**: MCP servers communicate over standard input/output using JSON-RPC 2.0. To prevent protocol corruption, **zero logging is emitted to stdout**; all telemetry, audit trails, and debug messages stream to `stderr` as structured JSON.
 2. **Domain Core**: Business logic, query builders, validation, and parameter sanitization live strictly within Python domain classes. MCP tool handlers are ultra-thin wrappers that delegate to domain services.
 3. **FalkorDB Client Adapter (`falkordb_client.py`)**: The single isolated gateway importing `falkordb`. Wraps driver exceptions into standard domain errors (`DatabaseUnavailable`), parses result headers into clean Python dictionaries, ensures schema indexes, and handles transient socket retries.
+
+> [!TIP]
+> For an exhaustive, file-by-file code flow, component breakdown, and execution traces of all 4 request lifecycles, see **[ARCHITECTURE_CODE_FLOW.md](ARCHITECTURE_CODE_FLOW.md)**.
 
 ---
 
@@ -649,6 +654,123 @@ docker compose up -d
 
 ---
 
+### Testing Locally with MCP Inspector (`@modelcontextprotocol/inspector`)
+
+The official [Model Context Protocol Inspector](https://github.com/modelcontextprotocol/inspector) (`@modelcontextprotocol/inspector`) allows you to interactively test, inspect, and debug any of the three MCP servers locally without needing to spin up an AI client or configure Claude Desktop.
+
+You can run it in two modes:
+1. **Interactive Web UI**: Launches a browser GUI on `http://localhost:5173` with visual form fields for all tool schemas, parameter validation, and real-time JSON-RPC inspector logs.
+2. **Headless / CLI Mode (`--cli`)**: Directly queries tools, inspects schemas, and executes tool calls straight from your terminal.
+
+#### Prerequisites
+- Node.js 18+ installed (`node --version`)
+- Python virtual environment created and dependencies installed (`pip install -e .`)
+- FalkorDB running (either local Docker or FalkorDB Cloud)
+
+> [!IMPORTANT]
+> **Windows PowerShell Execution**:
+> In Windows PowerShell, executing `npx` may trigger a `PSSecurityException` script execution error. Always use `npx.cmd` in PowerShell on Windows. On macOS and Linux, use standard `npx`.
+
+---
+
+#### Mode 1: Interactive Web UI Mode
+
+Run any of the following commands in your terminal from the project root. The Inspector will launch a proxy process and automatically open your default browser to `http://localhost:5173`:
+
+##### 1. Inspect Track 1: `atlaspay-reasoning`
+```bash
+# Windows (PowerShell)
+npx.cmd @modelcontextprotocol/inspector .\.venv\Scripts\python.exe -m graph_intelligence.reasoning.mcp_server
+
+# Linux / macOS
+npx @modelcontextprotocol/inspector .venv/bin/python -m graph_intelligence.reasoning.mcp_server
+```
+
+##### 2. Inspect Track 2: `atlaspay-memory` (The Critical Track)
+> [!NOTE]
+> `atlaspay-memory` isolates user memory using server-side identity injection. When launching via MCP Inspector, supply the test user identity via the `-e` environment flag:
+
+```bash
+# Windows (PowerShell)
+npx.cmd @modelcontextprotocol/inspector -e DEMO_USER_ID=demo-user-herbert .\.venv\Scripts\python.exe -m graph_intelligence.memory.mcp_server
+
+# Linux / macOS
+npx @modelcontextprotocol/inspector -e DEMO_USER_ID=demo-user-herbert .venv/bin/python -m graph_intelligence.memory.mcp_server
+```
+
+##### 3. Inspect Track 3: `atlaspay-brain`
+```bash
+# Windows (PowerShell)
+npx.cmd @modelcontextprotocol/inspector .\.venv\Scripts\python.exe -m graph_intelligence.company_brain.mcp_server
+
+# Linux / macOS
+npx @modelcontextprotocol/inspector .venv/bin/python -m graph_intelligence.company_brain.mcp_server
+```
+
+Once the Web UI opens:
+- Click **"List Tools"** to view all registered tools, descriptions, and required argument types.
+- Select a tool (e.g. `find_service_dependencies`), populate the input fields, and click **"Run Tool"**.
+- View the exact returned JSON envelope and inspect the raw `stderr` JSON telemetry in the inspector console pane.
+
+---
+
+#### Mode 2: Headless / CLI Mode (`--cli`)
+
+For rapid automated checks and scripts, use the `--cli` flag:
+
+##### 1. List Available Tools
+```bash
+# Windows (PowerShell)
+npx.cmd @modelcontextprotocol/inspector --cli --method tools/list .\.venv\Scripts\python.exe -m graph_intelligence.reasoning.mcp_server
+```
+**Sample Output:**
+```json
+{
+  "tools": [
+    {
+      "name": "find_service_dependencies",
+      "description": "Find upstream dependencies or downstream dependents of a service in the AtlasPay graph.",
+      "inputSchema": { ... }
+    },
+    {
+      "name": "analyze_change_impact",
+      "description": "Analyze the cascading blast radius and change impact of modifying a service, feature, or architecture decision.",
+      "inputSchema": { ... }
+    }
+  ]
+}
+```
+
+##### 2. Execute a Reasoning Tool via CLI
+> [!TIP]
+> **PowerShell JSON Quoting**: When passing JSON via `--tool-args-json` in PowerShell to `npx.cmd`, escape internal quotes using backslashes `\"` (or PowerShell backticks `` `\" ``):
+> ```powershell
+> --tool-args-json '{\"service\":\"PaymentService\",\"direction\":\"both\",\"max_depth\":2}'
+> ```
+> For complex payloads or strings containing spaces, the **Interactive Web UI** (`http://localhost:5173`) provides visual input forms with automatic JSON formatting.
+
+```bash
+# Windows (PowerShell)
+npx.cmd @modelcontextprotocol/inspector --cli --method tools/call --tool-name find_service_dependencies --tool-args-json '{\"service\":\"PaymentService\",\"direction\":\"both\",\"max_depth\":2}' .\.venv\Scripts\python.exe -m graph_intelligence.reasoning.mcp_server
+
+# Linux / macOS
+npx @modelcontextprotocol/inspector --cli --method tools/call --tool-name find_service_dependencies --tool-args-json '{"service":"PaymentService","direction":"both","max_depth":2}' .venv/bin/python -m graph_intelligence.reasoning.mcp_server
+```
+
+##### 3. Execute a Memory Write via CLI
+```bash
+# Windows (PowerShell)
+npx.cmd @modelcontextprotocol/inspector --cli -e DEMO_USER_ID=demo-user-herbert --method tools/call --tool-name remember_session_summary --tool-args-json '{\"title\":\"CLI_Summary\",\"summary\":\"Tested_persistence_via_inspector_CLI\",\"keywords\":[\"inspector\",\"test\",\"cli\"],\"entities\":[\"PaymentService\"]}' .\.venv\Scripts\python.exe -m graph_intelligence.memory.mcp_server
+```
+
+##### 4. Execute a Memory Search via CLI
+```bash
+# Windows (PowerShell)
+npx.cmd @modelcontextprotocol/inspector --cli -e DEMO_USER_ID=demo-user-herbert --method tools/call --tool-name search_user_memory --tool-args-json '{\"query\":\"cli\",\"keywords\":[\"inspector\"]}' .\.venv\Scripts\python.exe -m graph_intelligence.memory.mcp_server
+```
+
+---
+
 ### Configuring MCP Clients
 
 The three MCP servers communicate using the JSON-RPC stdio protocol. Configure your preferred AI client:
@@ -714,3 +836,22 @@ Add the following to your Antigravity MCP configuration (`MCP Servers -> Manage 
 | `PSSecurityException: File ... Activate.ps1 cannot be loaded` | Windows PowerShell execution policy blocks scripts. | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in your PowerShell terminal before running `.\.venv\Scripts\Activate.ps1`. |
 | `JSONRPCError / Protocol Desynchronization` | Server wrote stdout text instead of clean JSON-RPC messages. | Ensure no `print()` statements are added to MCP code. All logging in this repository strictly outputs JSON to `stderr`. |
 | `Attribute 'id' is already indexed` | Non-idempotent index creation. | Handled automatically by `GraphStore.ensure_indexes()`. If manually modifying schema, inspect with `CALL db.indexes()` first. |
+
+---
+
+## 10. Deep Architecture & File-by-File Code Flow
+
+For an in-depth architectural and code-level walkthrough, please refer to the comprehensive reference document:
+
+📖 **[ARCHITECTURE_CODE_FLOW.md](ARCHITECTURE_CODE_FLOW.md)**
+
+### Key Highlights Covered in the Deep Dive:
+- **Clean / Hexagonal Architecture**: Complete decoupling of stdio transports, domain services, and database adapters.
+- **Component Breakdown**:
+  - `src/graph_intelligence/common/`: Driver isolation ([`GraphStore`](src/graph_intelligence/common/falkordb_client.py)), zero-stdout structured logging ([`logging_setup.py`](src/graph_intelligence/common/logging_setup.py)), secret scanner & bounds ([`validation.py`](src/graph_intelligence/common/validation.py)), and trusted caller identity ([`identity.py`](src/graph_intelligence/common/identity.py)).
+  - `src/graph_intelligence/reasoning/`: Directed graph traversal queries ([`queries.py`](src/graph_intelligence/reasoning/queries.py)), blast radius calculation & risk scoring ([`service.py`](src/graph_intelligence/reasoning/service.py)).
+  - `src/graph_intelligence/memory/`: Persistent session versioning (`[:SUPERSEDES]`), 8-stage deterministic scoring formula ([`retrieval.py`](src/graph_intelligence/memory/retrieval.py)), and read-back verification ([`service.py`](src/graph_intelligence/memory/service.py)).
+  - `src/graph_intelligence/company_brain/`: 60-second TTL cached entity resolver ([`resolver.py`](src/graph_intelligence/company_brain/resolver.py)), grounded source-backed Q&A with gap detection ([`service.py`](src/graph_intelligence/company_brain/service.py)), and idempotent ingestion ([`ingestion.py`](src/graph_intelligence/company_brain/ingestion.py)).
+- **4 Complete Sequence Diagrams**: Step-by-step traces for blast radius analysis, memory write, memory search, and company Q&A.
+- **Design Patterns & Defense-in-Depth Rationale**: Detailed explanations for why each file exists as an independent layer to maximize testability, security, and maintainability.
+
