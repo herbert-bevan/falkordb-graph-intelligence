@@ -1,0 +1,69 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug: Interactive Console (run.py)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run.py",
+      "args": ["--repl"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: Pytest All Tests (like dotnet test)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests", "-v", "-s"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: Pytest Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v", "-s"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: MCP Reasoning Server (Direct stdio)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "graph_intelligence.reasoning.mcp_server",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: MCP Memory Server (Direct stdio)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "graph_intelligence.memory.mcp_server",
+      "env": {
+        "DEMO_USER_ID": "demo-user-herbert"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: MCP Corporate Brain Server (Direct stdio)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "graph_intelligence.company_brain.mcp_server",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: Attach to Python Process (port 5678)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "justMyCode": true
+    }
+  ]
+}
